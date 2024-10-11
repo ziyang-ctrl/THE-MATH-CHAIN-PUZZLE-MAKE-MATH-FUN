@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Chain Puzzle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #fac2c8; /* Macaron pink background */
+        }
+
+        .home-container, .game-container {
+            display: none;
+            text-align: center;
+        }
+
+        .home-container.active, .game-container.active {
+            display: block;
+        }
+
+        h1 {
+            color: #fff;
+            margin-bottom: 20px;
+            font-size: 48px;
+        }
+
+        .start-button {
+            padding: 15px 30px;
+            font-size: 24px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        .start-button:hover {
+            background-color: #218838;
+        }
+
+        .difficulty-button {
+            padding: 10px 20px;
+            font-size: 18px;
+            margin: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .difficulty-button:hover {
+            background-color: #0056b3;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(5, 80px);
+            grid-template-rows: repeat(5, 80px);
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .grid-container div {
+            width: 80px;
+            height: 80px;
+            background-color: #ddd;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #555;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: background-color 0.2s;
+        }
+
+        .grid-container div:hover {
+            background-color: #ccc;
+        }
+
+        .info-panel {
+            margin-bottom: 10px;
+        }
+
+        .actions {
+            margin-top: 10px;
+        }
+
+        .actions button {
+            padding: 10px 15px;
+            margin: 5px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .actions button:hover {
+            background-color: #218838;
+        }
+
+        /* Timer Style */
+        .info-panel p {
+            font-size: 18px;
+            margin: 5px 0;
+        }
+
+        /* Ranking Section */
+        #ranking {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        #rankingList {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #rankingList li {
+            padding: 5px 0;
+            font-size: 16px;
+        }
+
+        /* Footer */
+        .footer {
+            font-size: 12px;
+            color: #fff;
+            position: absolute;
+            bottom: 10px;
+            text-align: center;
+            width: 100%;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Home Page Section -->
+    <div class="home-container active" id="homePage">
+        <h1>Math Chain Puzzle</h1>
+        <h2>Select Difficulty</h2>
+        <button class="difficulty-button" id="easyButton">Easy</button>
+        <button class="difficulty-button" id="mediumButton">Medium</button>
+        <button class="difficulty-button" id="hardButton">Hard</button>
+        <button class="difficulty-button" id="hellButton">Hell</button>
+        <div class="footer">La Meilleur Innovation - SMK SERI KEMBANGAN</div>
+    </div>
+
+    <!-- Game Page Section -->
+    <div class="game-container" id="gamePage">
+        <h1>Number Chain Puzzle</h1>
+        <div class="info-panel">
+            <p>Goal: <span id="goal">100</span></p>
+            <p>Moves: <span id="moves">0</span></p>
+            <p>Time: <span id="timer">00:00</span></p> <!-- Timer Display -->
+        </div>
+        <div class="grid-container" id="grid"></div>
+        <div class="actions">
+            <button id="start">Start</button> <!-- Start Button -->
+            <button id="pause">Pause</button> <!-- Pause Button -->
+            <button id="add">Addition</button>
+            <button id="subtract">Subtraction</button>
+            <button id="multiply">Multiplication</button>
+            <button id="undo">Undo</button>
+            <button id="restart">Restart</button>
+            <button id="returnHome">Return to Home</button> <!-- New Return to Home Button -->
+        </div>
+        <!-- Ranking Section -->
+        <div id="ranking">
+            <h2>Ranking</h2>
+            <ul id="rankingList"></ul> <!-- List to display ranking -->
+        </div>
+    </div>
+
+    <script>
+        // Game Variables
+        let startTime, timerInterval, isPaused = false, elapsedTime = 0;
+        let rankings = {
+            easy: [],
+            medium: [],
+            hard: [],
+            hell: []
+        };
+        let goal = 100;
+        let moves = 0;
+        let gridData = [];
+        let previousGridData = [];
+        let history = [];
+        let operation = 'add'; // Default operation is addition
+        let difficulty = 'easy'; // Default difficulty
+        let selectedIndex = null; // To store the selected cell
+        let isGameStarted = false; // Track if the game has started
+
+        // HTML Elements
+        const homePage = document.getElementById('homePage');
+        const gamePage = document.getElementById('gamePage');
+        const grid = document.getElementById('grid');
+        const goalElement = document.getElementById('goal');
+        const movesElement = document.getElementById('moves');
+        const timerElement = document.getElementById('timer');
+        const rankingList = document.getElementById('rankingList');
+
+        // Buttons
+        const startButton = document.getElementById('start');
+        const pauseButton = document.getElementById('pause');
+        const addButton = document.getElementById('add');
+        const subtractButton = document.getElementById('subtract');
+        const multiplyButton = document.getElementById('multiply');
+        const undoButton = document.getElementById('undo');
+        const restartButton = document.getElementById('restart');
+        const returnHomeButton = document.getElementById('returnHome');  // Return to Home button
+
+        // Difficulty Buttons
+        const easyButton = document.getElementById('easyButton');
+        const mediumButton = document.getElementById('mediumButton');
+        const hardButton = document.getElementById('hardButton');
+        const hellButton = document.getElementById('hellButton');
+
+        // Initialize the game with difficulty-based goal
+        function initGame() {
+            switch (difficulty) {
+                case 'easy':
+                    goal = Math.floor(Math.random() * 50 + 10);  // Easy: 10-59
+                    break;
+                case 'medium':
+                    goal = Math.floor(Math.random() * 900 + 100);  // Medium: 100-999
+                    break;
+                case 'hard':
+                    goal = Math.floor(Math.random() * 9000 + 1000);  // Hard: 1000-9999
+                    break;
+                case 'hell':
+                    goal = Math.floor(Math.random() * 90000 + 10000);  // Hell: 10000-99999
+                    break;
+            }
+            goalElement.textContent = goal;
+            moves = 0;
+            movesElement.textContent = moves;
+            gridData = [];
+            elapsedTime = 0;
+            timerElement.textContent = "00:00";
+            clearInterval(timerInterval);  // Stop any previous timers
+            selectedIndex = null;  // Reset selected cell
+            isGameStarted = false; // Reset game start status
+
+            // Initialize 5x5 grid with random numbers between 1 and 9
+            for (let i = 0; i < 25; i++) {
+                gridData.push(Math.floor(Math.random() * 9) + 1);
+            }
+            renderGrid();
+        }
+
+        // Timer Functions
+        function startTimer() {
+            startTime = Date.now() - elapsedTime;
+            timerInterval = setInterval(() => {
+                elapsedTime = Date.now() - startTime;
+                timerElement.textContent = formatTime(elapsedTime);
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            clearInterval(timerInterval);
+        }
+
+        function formatTime(time) {
+            const totalSeconds = Math.floor(time / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Render Grid
+        function renderGrid() {
+            grid.innerHTML = ''; // Clear the grid
+            gridData.forEach((num, index) => {
+                const cell = document.createElement('div');
+                cell.textContent = num;
+                cell.onclick = () => selectCell(index);
+                grid.appendChild(cell);
+            });
+        }
+
+        // Check if two cells are adjacent in a 5x5 grid
+        function areAdjacent(index1, index2) {
+            const diff = Math.abs(index1 - index2);
+            return diff === 1 || diff === 5;  // Adjacent if 1 step left/right or 5 steps up/down
+        }
+
+        // Select Cell Function
+        function selectCell(index) {
+            if (!isGameStarted) {
+                alert("Please click 'Start' to begin the game!");
+                return;
+            }
+
+            if (selectedIndex === null) {
+                selectedIndex = index;
+            } else {
+                if (areAdjacent(selectedIndex, index)) {
+                    applyOperation(selectedIndex, index);
+                    selectedIndex = null;
+                } else {
+                    alert("Only adjacent cells can be selected for operations!");
+                    selectedIndex = null;
+                }
+            }
+        }
+
+        // Apply Operation (Addition, Subtraction, Multiplication)
+        function applyOperation(index1, index2) {
+            previousGridData = [...gridData]; // Save previous state for undo
+            history.push({ gridData: previousGridData, moves: moves }); // Save to history for undo
+
+            switch (operation) {
+                case 'add':
+                    gridData[index2] += gridData[index1];  // Add the two values
+                    gridData[index1] = Math.floor(Math.random() * 9) + 1;  // Change the first value to a new random number
+                    break;
+                case 'subtract':
+                    gridData[index2] -= gridData[index1];
+                    gridData[index1] = Math.floor(Math.random() * 9) + 1;
+                    break;
+                case 'multiply':
+                    gridData[index2] *= gridData[index1];
+                    gridData[index1] = Math.floor(Math.random() * 9) + 1;
+                    break;
+            }
+            moves++;
+            movesElement.textContent = moves;
+            renderGrid();
+            checkWin();
+        }
+
+        // Check Win Condition
+        function checkWin() {
+            if (gridData.includes(goal)) {
+                pauseTimer();  // Stop timer
+                const name = prompt("Congratulations! Enter your name for the ranking:");
+                if (name) {
+                    rankings[difficulty].push({ name: name, moves: moves, time: elapsedTime });
+                    updateRanking();
+                }
+            }
+        }
+
+        // Update Ranking List
+        function updateRanking() {
+            rankings[difficulty].sort((a, b) => a.moves - b.moves);  // Sort by moves (ascending)
+            rankingList.innerHTML = '';
+            rankings[difficulty].forEach((rank, index) => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${index + 1}. ${rank.name} - Moves: ${rank.moves}, Time: ${formatTime(rank.time)}`;
+                rankingList.appendChild(listItem);
+            });
+        }
+
+        // Start Button Functionality
+        startButton.onclick = function () {
+            if (!isGameStarted) {
+                isGameStarted = true;
+                startTimer();
+            }
+        };
+
+        // Pause Button Functionality
+        pauseButton.onclick = function () {
+            isPaused = true;
+            pauseTimer();
+        };
+
+        // Restart Button Functionality
+        restartButton.onclick = function () {
+            initGame();
+            clearInterval(timerInterval);  // Stop the current timer
+            elapsedTime = 0;  // Reset the elapsed time
+            timerElement.textContent = "00:00";  // Reset the timer display
+            startTimer();  // Start the timer again
+        };
+
+        // Undo Button Functionality
+        undoButton.onclick = function () {
+            if (history.length > 0) {
+                const lastState = history.pop();
+                gridData = lastState.gridData;
+                moves = lastState.moves;
+                movesElement.textContent = moves;
+                renderGrid();
+            }
+        };
+
+        // Change Operation Functionality
+        addButton.onclick = function () {
+            operation = 'add';
+        };
+        subtractButton.onclick = function () {
+            operation = 'subtract';
+        };
+        multiplyButton.onclick = function () {
+            operation = 'multiply';
+        };
+
+        // Return to Home Page
+        returnHomeButton.onclick = function () {
+            gamePage.classList.remove('active');
+            homePage.classList.add('active');
+            clearInterval(timerInterval);  // Stop the timer
+            elapsedTime = 0;  // Reset the time
+        };
+
+        // Difficulty Selection
+        easyButton.onclick = function () {
+            difficulty = 'easy';
+            homePage.classList.remove('active');
+            gamePage.classList.add('active');
+            initGame();
+            updateRanking(); // Update ranking list for easy difficulty
+        };
+
+        mediumButton.onclick = function () {
+            difficulty = 'medium';
+            homePage.classList.remove('active');
+            gamePage.classList.add('active');
+            initGame();
+            updateRanking(); // Update ranking list for medium difficulty
+        };
+
+        hardButton.onclick = function () {
+            difficulty = 'hard';
+            homePage.classList.remove('active');
+            gamePage.classList.add('active');
+            initGame();
+            updateRanking(); // Update ranking list for hard difficulty
+        };
+
+        hellButton.onclick = function () {
+            difficulty = 'hell';
+            homePage.classList.remove('active');
+            gamePage.classList.add('active');
+            initGame();
+            updateRanking(); // Update ranking list for hell difficulty
+            // Pause Button Functionality
+pauseButton.onclick = function () {
+    if (!isGameStarted) {
+        alert("Game hasn't started yet!");
+        return;
+    }
+
+    if (isPaused) {
+        // Resume the game
+        isPaused = false;
+        startTimer();  // Resume the timer
+        pauseButton.textContent = 'Pause';  // Change button text to "Pause"
+    } else {
+        // Pause the game
+        isPaused = true;
+        pauseTimer();  // Stop the timer
+        pauseButton.textContent = 'Resume';  // Change button text to "Resume"
+    }
+};
+
+// Timer Functions (pause remains the same)
+function pauseTimer() {
+    clearInterval(timerInterval);
+    function startTimer() {
+    startTime = Date.now() - elapsedTime;  // Adjust the start time to account for elapsed time
+    timerInterval = setInterval(() => {
+        elapsedTime = Date.now() - startTime;
+        timerElement.textContent = formatTime(elapsedTime);
+    }, 1000);
+}
+}
+        };
+
+    </script>
+</body>
+</html>
